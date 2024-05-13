@@ -236,6 +236,7 @@ where
 /// like yen, but with a breakoff cost that is used in the dijkstra_internal search.
 /// 
 /// This is ideal for example when you know a deistination is reachable within a certain time, and the costs in the graph are traversal times.
+/// the success function can not mutate state in contrast with yen().
 pub fn yen_breakoff<N, C, FN, IN, FS>(
     start: &N,
     mut successors: FN,
