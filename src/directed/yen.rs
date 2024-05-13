@@ -297,7 +297,7 @@ where
             // this gives a goal for dijkstra_internal to stop early when searching between spur and sink.
             // cost of the root path up to the spur node.
 
-            let to_spur_cost = make_cost_unmut(&root_path[0..=i], &successors);
+            let to_spur_cost = make_cost_unmut(&root_path[0..i], &successors);
             let rest_cost = match breakoff {
                 Some(b) => Some(b - to_spur_cost),
                 None => None,
