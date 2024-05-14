@@ -313,10 +313,6 @@ where
                     // Since we don't know the root_path cost, we need to recalculate.
                     let cost = make_cost(&nodes, &mut successors);
                     // if cost is over the breakoff cost, we will not add it.
-                    let breakoff = C::zero();
-                    if cost > breakoff {
-                        continue;
-                    }
                     let path = Path { nodes, cost };
                     // Mark as visited
                     visited.insert(path.nodes.clone());
