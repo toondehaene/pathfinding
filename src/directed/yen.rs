@@ -216,7 +216,7 @@ where
     cost
 }
 
-fn make_cost_unmut<N, FN, IN, C>(nodes: &[N], successors: & FN) -> C
+fn _make_cost_unmut<N, FN, IN, C>(nodes: &[N], successors: & FN) -> C
 where
     N: Eq,
     C: Zero,
@@ -297,15 +297,15 @@ where
             // this gives a goal for dijkstra_internal to stop early when searching between spur and sink.
             // cost of the root path up to the spur node.
 
-            let to_spur_cost = make_cost_unmut(&previous[0..i], &successors);
-            let rest_cost = match breakoff {
-                Some(b) => Some(b - to_spur_cost),
-                None => None,
-            };
+            // let to_spur_cost = make_cost_unmut(&previous[0..i], &successors);
+            // let rest_cost = match breakoff {
+            //     Some(b) => Some(b - to_spur_cost),
+            //     None => None,
+            // };
 
             // Let us find the spur path from the spur node to the sink using.
             if let Some((spur_path, _)) =
-                dijkstra_internal_breakoff(spur_node, &mut filtered_successor, &mut success,rest_cost)
+                dijkstra_internal_breakoff(spur_node, &mut filtered_successor, &mut success,breakoff)
             {
                 let nodes: Vec<N> = root_path.iter().cloned().chain(spur_path).collect();
                 // If we have found the same path before, we will not add it.
