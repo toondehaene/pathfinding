@@ -191,6 +191,30 @@ where
         reached.map(|i| parents.get_index(i).unwrap().0.clone()),
     )
 }
+/// breakoff version of dijkstra_partial
+pub fn dijkstra_partial_breakoff<N, C, FN, IN, FS>(
+    start: &N,
+    mut successors: FN,
+    mut stop: FS,
+    breakoff: Option<C>,
+) -> (HashMap<N, (N, C)>, Option<N>)
+where
+    N: Eq + Hash + Clone,
+    C: Zero + Ord + Copy,
+    FN: FnMut(&N) -> IN,
+    IN: IntoIterator<Item = (N, C)>,
+    FS: FnMut(&N) -> bool,
+{
+    let (parents, reached) = run_dijkstra_breakoff(start, &mut successors, &mut stop, breakoff);
+    (
+        parents
+            .iter()
+            .skip(1)
+            .map(|(n, (p, c))| (n.clone(), (parents.get_index(*p).unwrap().0.clone(), *c))) // unwrap() cannot fail
+            .collect(),
+        reached.map(|i| parents.get_index(i).unwrap().0.clone()),
+    )
+}
 
 fn run_dijkstra<N, C, FN, IN, FS>(
     start: &N,
@@ -431,8 +455,6 @@ where
     }
 }
 
-
-
 pub(crate) fn dijkstra_internal_breakoff<N, C, FN, IN, FS>(
     start: &N,
     successors: &mut FN,
@@ -454,7 +476,6 @@ where
         )
     })
 }
-
 
 fn run_dijkstra_breakoff<N, C, FN, IN, FS>(
     start: &N,
