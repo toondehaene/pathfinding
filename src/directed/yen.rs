@@ -7,6 +7,8 @@ use std::collections::BinaryHeap;
 use std::collections::HashSet;
 use std::hash::Hash;
 
+use crate::prelude::dijkstra_internal_breakoff_many_to_stop;
+
 use super::dijkstra::dijkstra_internal;
 use super::dijkstra::dijkstra_internal_breakoff;
 
@@ -257,6 +259,121 @@ where
     };
 
     let mut visited = HashSet::new();
+    // A vector containing our paths.
+    let mut routes = vec![Path { nodes: n, cost: c }];
+    // A min-heap to store our lowest-cost route candidate
+    let mut k_routes = BinaryHeap::new();
+    for ki in 0..(k - 1) {
+        if routes.len() <= ki || routes.len() == k {
+            // We have no more routes to explore, or we have found enough.
+            break;
+        }
+        // Take the most recent route to explore new spurs.
+        let previous = &routes[ki].nodes;
+        // Iterate over every node except the sink node.
+        for i in 0..(previous.len() - 1) {
+            let spur_node = &previous[i];
+            let root_path = &previous[0..i];
+
+            let mut filtered_edges = HashSet::new();
+            for path in &routes {
+                if path.nodes.len() > i + 1
+                    && &path.nodes[0..i] == root_path
+                    && &path.nodes[i] == spur_node
+                {
+                    filtered_edges.insert((&path.nodes[i], &path.nodes[i + 1]));
+                }
+            }
+            let filtered_nodes: HashSet<&N> = HashSet::from_iter(root_path);
+            // We are creating a new successor function that will not return the
+            // filtered edges and nodes that routes already used.
+            let mut filtered_successor = |n: &N| {
+                successors(n)
+                    .into_iter()
+                    .filter(|(n2, _)| {
+                        !filtered_nodes.contains(&n2) && !filtered_edges.contains(&(n, n2))
+                    })
+                    .collect::<Vec<_>>()
+            };
+            // TODO: we need to calculate the cost up until the spur node, as well as the breakoff cost
+            // this gives a goal for dijkstra_internal to stop early when searching between spur and sink.
+            // cost of the root path up to the spur node.
+
+            // let to_spur_cost = make_cost_unmut(&previous[0..i], &successors);
+            // let rest_cost = match breakoff {
+            //     Some(b) => Some(b - to_spur_cost),
+            //     None => None,
+            // };
+
+            // Let us find the spur path from the spur node to the sink using.
+            if let Some((spur_path, _)) =
+                dijkstra_internal_breakoff(spur_node, &mut filtered_successor, &mut success,breakoff)
+            {
+                let nodes: Vec<N> = root_path.iter().cloned().chain(spur_path).collect();
+                // If we have found the same path before, we will not add it.
+                if !visited.contains(&nodes) {
+                    // Since we don't know the root_path cost, we need to recalculate.
+                    let cost = make_cost(&nodes, &mut successors);
+                    // if cost is over the breakoff cost, we will not add it.
+                    let path = Path { nodes, cost };
+                    // Mark as visited
+                    visited.insert(path.nodes.clone());
+                    // Build a min-heap
+                    k_routes.push(Reverse(path));
+                }
+            }
+        }
+        if let Some(k_route) = k_routes.pop() {
+            let route = k_route.0;
+            let cost = route.cost;
+            routes.push(route);
+            // If we have other potential best routes with the same cost, we can insert
+            // them in the found routes since we will not find a better alternative.
+            while routes.len() < k {
+                let Some(k_route) = k_routes.peek() else {
+                    break;
+                };
+                if k_route.0.cost == cost {
+                    let Some(k_route) = k_routes.pop() else {
+                        break; // Cannot break
+                    };
+                    routes.push(k_route.0);
+                } else {
+                    break; // Other routes have higher cost
+                }
+            }
+        }
+    }
+
+    routes.sort_unstable();
+    routes
+        .into_iter()
+        .map(|Path { nodes, cost }| (nodes, cost))
+        .collect()
+}
+
+/// Like yen_breakoff, but we give an initial state of visited nodes. Possiblity also their initial costs in the future
+pub fn yen_breakoff_many_to_stop<N, C, FN, IN, FS>(
+    starters: &[N],
+    mut successors: FN,
+    mut success: FS,
+    k: usize,
+    breakoff: Option<C>,
+) -> Vec<(Vec<N>, C)>
+where
+    N: Eq + Hash + Clone,
+    C: Zero + Ord + Copy + std::ops::Sub<Output = C>,
+    FN: Fn(&N) -> IN,
+    IN: IntoIterator<Item = (N, C)>,
+    FS: Fn(&N) -> bool,
+{
+    let mut visited = HashSet::new();
+
+    let Some((n, c)) = dijkstra_internal_breakoff_many_to_stop(starters, &mut successors, &mut success, breakoff)
+    else {
+        return vec![];
+    };
+
     // A vector containing our paths.
     let mut routes = vec![Path { nodes: n, cost: c }];
     // A min-heap to store our lowest-cost route candidate

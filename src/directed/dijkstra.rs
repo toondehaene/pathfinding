@@ -477,6 +477,94 @@ where
     })
 }
 
+pub(crate) fn dijkstra_internal_breakoff_many_to_stop<N, C, FN, IN, FS>(
+    starters: &[N],
+    successors: &mut FN,
+    success: &mut FS,
+    breakoff: Option<C>,
+) -> Option<(Vec<N>, C)>
+where
+    N: Eq + Hash + Clone,
+    C: Zero + Ord + Copy,
+    FN: FnMut(&N) -> IN,
+    IN: IntoIterator<Item = (N, C)>,
+    FS: FnMut(&N) -> bool,
+{
+    let (parents, reached) = run_dijkstra_breakoff_many_to_stop(starters, successors, success, breakoff);
+    reached.map(|target| {
+        (
+            reverse_path(&parents, |&(p, _)| p, target),
+            parents.get_index(target).unwrap().1 .1,
+        )
+    })
+}
+
+fn run_dijkstra_breakoff_many_to_stop<N, C, FN, IN, FS>(
+    starters: &[N],
+    successors: &mut FN,
+    stop: &mut FS,
+    breakoff: Option<C>,
+) -> (FxIndexMap<N, (usize, C)>, Option<usize>)
+where
+    N: Eq + Hash + Clone,
+    C: Zero + Ord + Copy,
+    FN: FnMut(&N) -> IN,
+    IN: IntoIterator<Item = (N, C)>,
+    FS: FnMut(&N) -> bool,
+{
+    let mut to_see = BinaryHeap::new();
+    to_see.push(SmallestHolder {
+        cost: Zero::zero(),
+        index: 0,
+    });
+    let mut parents: FxIndexMap<N, (usize, C)> = FxIndexMap::default();
+    // parents.insert(start.clone(), (usize::MAX, Zero::zero()));
+    for start in starters {
+        parents.insert(start.clone(), (usize::MAX, Zero::zero()));
+    }
+    let mut target_reached = None;
+    while let Some(SmallestHolder { cost, index }) = to_see.pop() {
+        if let Some(breakoff) = breakoff {
+            if cost > breakoff {
+                return (parents, None);
+            }
+        }
+        let successors = {
+            let (node, _) = parents.get_index(index).unwrap();
+            if stop(node) {
+                target_reached = Some(index);
+                break;
+            }
+            successors(node)
+        };
+        for (successor, move_cost) in successors {
+            let new_cost = cost + move_cost;
+            let n;
+            match parents.entry(successor) {
+                Vacant(e) => {
+                    n = e.index();
+                    e.insert((index, new_cost));
+                }
+                Occupied(mut e) => {
+                    if e.get().1 > new_cost {
+                        n = e.index();
+                        e.insert((index, new_cost));
+                    } else {
+                        continue;
+                    }
+                }
+            }
+
+            to_see.push(SmallestHolder {
+                cost: new_cost,
+                index: n,
+            });
+        }
+    }
+    (parents, target_reached)
+}
+
+
 fn run_dijkstra_breakoff<N, C, FN, IN, FS>(
     start: &N,
     successors: &mut FN,
