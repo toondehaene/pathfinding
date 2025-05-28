@@ -490,7 +490,8 @@ where
     IN: IntoIterator<Item = (N, C)>,
     FS: FnMut(&N) -> bool,
 {
-    let (parents, reached) = run_dijkstra_breakoff_many_to_stop(starters, successors, success, breakoff);
+    let (parents, reached) =
+        run_dijkstra_breakoff_many_to_stop(starters, successors, success, breakoff);
     reached.map(|target| {
         (
             reverse_path(&parents, |&(p, _)| p, target),
@@ -530,7 +531,11 @@ where
             }
         }
         let successors = {
-            let (node, _) = parents.get_index(index).unwrap();
+            let maybe_next = parents.get_index(index);
+            if maybe_next.is_none() {
+                println!("breakpoint");
+            }
+            let (node, _) = maybe_next.unwrap();
             if stop(node) {
                 target_reached = Some(index);
                 break;
@@ -563,7 +568,6 @@ where
     }
     (parents, target_reached)
 }
-
 
 fn run_dijkstra_breakoff<N, C, FN, IN, FS>(
     start: &N,
