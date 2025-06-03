@@ -239,6 +239,8 @@ where
 /// 
 /// This is ideal for example when you know a deistination is reachable within a certain time, and the costs in the graph are traversal times.
 /// the success function can not mutate state in contrast with yen().
+/// if you want to do many to stop, submit some UNIT node as start and
+/// introduce a special case in the successors function that returns all your starting nodes with a cost of 0 when the UNIT node is given.
 pub fn yen_breakoff<N, C, FN, IN, FS>(
     start: &N,
     mut successors: FN,
